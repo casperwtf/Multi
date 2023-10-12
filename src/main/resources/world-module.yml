@@ -1,0 +1,21 @@
+this-world: world-0
+config-version: 3
+last-updated: 0
+storage:
+  type: JSON # JSON, MONGODB
+  uri: mongodb://localhost:27017
+  database: hccore
+  username: ''
+  password: ''
+  collection: user
+servers:
+  world-0:
+    min-x: -1000
+    max-x: 1000
+    min-z: -1000
+    max-z: 1000
+  world-1:
+    min-x: 1001
+    max-x: 2000
+    min-z: -1000
+    max-z: 1000

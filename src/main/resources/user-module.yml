@@ -1,0 +1,8 @@
+config-version: 1
+storage:
+  type: JSON # JSON, MONGODB
+  uri: mongodb://localhost:27017
+  database: hccore
+  username: ''
+  password: ''
+  collection: user

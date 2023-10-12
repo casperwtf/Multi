@@ -1,0 +1,7 @@
+name: HCCore
+version: '${project.version}'
+main: wtf.casper.hccore.HCCore
+api-version: '1.20'
+depend:
+  - PlaceholderAPI
+  - Amethyst
