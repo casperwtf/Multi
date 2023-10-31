@@ -12,6 +12,13 @@ public class BlockSnapshotFiller implements Workload {
 
     @Override
     public void compute() {
+        if (!blockSnapshot.getLocation().getLocation().isChunkLoaded()) {
+            blockSnapshot.getLocation().getLocation().getWorld()
+                    .getChunkAtAsync(blockSnapshot.getLocation().getLocation())
+                    .thenRun(this::compute);
+
+            return;
+        }
         blockSnapshot.set();
     }
 }

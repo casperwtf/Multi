@@ -2,7 +2,6 @@ package wtf.casper.hccore.modules.worldsync;
 
 import wtf.casper.amethyst.core.AmethystCore;
 import wtf.casper.amethyst.core.inject.Inject;
-import wtf.casper.amethyst.core.mq.redis.RedisListener;
 import wtf.casper.amethyst.libs.lettuce.pubsub.RedisPubSubListener;
 import wtf.casper.hccore.modules.worldsync.data.BlockSnapshot;
 import wtf.casper.hccore.modules.worldsync.data.BlockSnapshotBundle;
@@ -11,18 +10,6 @@ import wtf.casper.hccore.modules.worldsync.data.BlockSnapshotFiller;
 public class WorldRedisListener implements RedisPubSubListener<String, String> {
 
     private final WorldManager worldManager = Inject.get(WorldManager.class);
-
-
-//    @Override
-//    public void onMessage(BlockSnapshotBundle blockSnapshot) {
-//        System.out.println("Received block snapshot bundle");
-//        if (blockSnapshot == null) return;
-//        System.out.println("BlockSnapshotBundle contains " + blockSnapshot.getBlockSnapshots().size() + " snapshots");
-//        for (BlockSnapshot snapshot : blockSnapshot.getBlockSnapshots()) {
-//            System.out.println("snapshot: " + snapshot.toString());
-//            worldManager.getWorkloadRunnable().addWorkload(new BlockSnapshotFiller(snapshot));
-//        }
-//    }
 
     @Override
     public void message(String channel, String message) {

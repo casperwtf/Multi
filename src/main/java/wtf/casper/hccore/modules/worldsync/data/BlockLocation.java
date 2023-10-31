@@ -1,10 +1,14 @@
 package wtf.casper.hccore.modules.worldsync.data;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
+import lombok.ToString;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 
-@Getter
+import java.util.Objects;
+
+@Getter @EqualsAndHashCode @ToString
 public class BlockLocation {
     private final String world;
     private final int x;
@@ -24,15 +28,5 @@ public class BlockLocation {
 
     public Location getLocation() {
         return new Location(Bukkit.getWorld(world), x, y, z);
-    }
-
-    @Override
-    public String toString() {
-        return "BlockLocation{" +
-                "world='" + world + '\'' +
-                ", x=" + x +
-                ", y=" + y +
-                ", z=" + z +
-                '}';
     }
 }

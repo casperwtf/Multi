@@ -8,19 +8,19 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.Player;
 import org.bukkit.event.Cancellable;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
-import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
+import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.world.ChunkLoadEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.spigotmc.event.player.PlayerSpawnLocationEvent;
 import wtf.casper.amethyst.core.inject.Inject;
-import wtf.casper.amethyst.paper.serialized.SerializedLocation;
-import wtf.casper.amethyst.paper.tracker.AsyncPlayerMoveEvent;
+import wtf.casper.amethyst.paper.events.AsyncPlayerMoveEvent;
 import wtf.casper.hccore.modules.worldsync.data.BlockLocation;
 import wtf.casper.hccore.modules.worldsync.data.BlockSnapshot;
 import wtf.casper.hccore.modules.worldsync.data.ServerBasedWorld;
@@ -37,14 +37,31 @@ public class WorldListener implements Listener {
     private final BlockData airBlockData = Material.AIR.createBlockData();
 
 
+    @EventHandler
+    public void onPlayerDamage(EntityDamageEvent event) {
+        if (event.getEntity() instanceof Player player) {
+            if (worldManager.aroundBorder(player.getLocation().getBlockX(), player.getLocation().getBlockZ(), 8)) {
+                event.setCancelled(true);
+            }
+        }
+    }
+
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onBlockPlace(BlockPlaceEvent event) {
-        emit(event.getBlock().getLocation(), event.getBlock().getBlockData());
+        if (worldManager.aroundBorder(event.getBlock().getX(), event.getBlock().getZ(), 8)) {
+            event.setCancelled(true);
+        } else {
+            emit(event.getBlock().getLocation(), airBlockData);
+        }
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onBlockBreak(BlockBreakEvent event) {
-        emit(event.getBlock().getLocation(), airBlockData);
+        if (worldManager.aroundBorder(event.getBlock().getX(), event.getBlock().getZ(), 8)) {
+            event.setCancelled(true);
+        } else {
+            emit(event.getBlock().getLocation(), airBlockData);
+        }
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
@@ -182,10 +199,15 @@ public class WorldListener implements Listener {
             return;
         }
 
+        if (worldManager.getTeleporting().contains(event.getPlayer().getUniqueId())) {
+            return;
+        }
+
         ServerBasedWorld thisWorld = null;
         for (ServerBasedWorld world : worldManager.getWorlds()) {
             if (world.withinBorder(event.getTo().getBlockX(), event.getTo().getBlockZ())) {
                 Location l = event.getTo();
+                worldManager.getTeleporting().add(event.getPlayer().getUniqueId());
                 worldManager.getRedisConnection().sync().set("world:" + event.getPlayer().getUniqueId(), l.getWorld().getName()+","+l.getX()+","+l.getY()+","+l.getZ()+","+l.getYaw()+","+l.getPitch());
                 world.tp(event.getPlayer());
                 thisWorld = world;
@@ -217,21 +239,8 @@ public class WorldListener implements Listener {
     }
 
     @EventHandler
-    public void onJoin(PlayerJoinEvent event) {
-//        String loc = worldManager.getRedisConnection().sync().get("world:" + event.getPlayer().getUniqueId());
-//        if (loc == null) {
-//            return;
-//        }
-//        String[] split = loc.split(",");
-//        if (split.length != 4) {
-//            return;
-//        }
-//        World world = Bukkit.getWorld(split[0]);
-//        if (world == null) {
-//            return;
-//        }
-//        event.getPlayer().teleport(new Location(world, Double.parseDouble(split[1]), Double.parseDouble(split[2]), Double.parseDouble(split[3])));
-//        protection.put(event.getPlayer().getUniqueId(), event.getPlayer().getLocation());
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        worldManager.getTeleporting().remove(event.getPlayer().getUniqueId());
     }
 
     private void emit(Location location, BlockData blockData) {

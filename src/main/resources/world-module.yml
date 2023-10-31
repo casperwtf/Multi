@@ -7,7 +7,7 @@ storage:
   database: hccore
   username: ''
   password: ''
-  collection: user
+  collection: blocks
 servers:
   world-0:
     min-x: -1000

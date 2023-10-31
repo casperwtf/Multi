@@ -2,12 +2,12 @@ package wtf.casper.hccore.modules.base;
 
 import com.google.auto.service.AutoService;
 import wtf.casper.amethyst.core.inject.Inject;
+import wtf.casper.amethyst.libs.boostedyaml.YamlDocument;
 import wtf.casper.amethyst.libs.storageapi.Credentials;
 import wtf.casper.amethyst.libs.storageapi.FieldStorage;
 import wtf.casper.amethyst.libs.storageapi.StorageType;
 import wtf.casper.amethyst.libs.storageapi.impl.direct.fstorage.DirectJsonFStorage;
 import wtf.casper.amethyst.libs.storageapi.impl.direct.fstorage.DirectMongoFStorage;
-import wtf.casper.amethyst.libs.storageapi.libs.boostedyaml.YamlDocument;
 import wtf.casper.hccore.HCCore;
 import wtf.casper.hccore.Module;
 

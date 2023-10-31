@@ -1,8 +1,6 @@
 package wtf.casper.hccore;
 
 import lombok.Getter;
-import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.java.JavaPlugin;
 import wtf.casper.amethyst.core.inject.Inject;
 import wtf.casper.amethyst.core.utils.ServiceUtil;
 import wtf.casper.amethyst.paper.AmethystPlugin;
@@ -18,10 +16,7 @@ public final class HCCore extends AmethystPlugin {
     public static boolean DEBUG = false;
 
     @Override
-    public void load() {
-        Inject.bind(Plugin.class, this);
-        Inject.bind(JavaPlugin.class, this);
-        Inject.bind(AmethystPlugin.class, this);
+    public void onLoad() {
         Inject.bind(HCCore.class, this);
 
         saveDefaultConfig();
@@ -37,7 +32,7 @@ public final class HCCore extends AmethystPlugin {
     }
 
     @Override
-    public void enable() {
+    public void onEnable() {
         for (Module module : modules) {
             module.enable();
         }
@@ -49,7 +44,7 @@ public final class HCCore extends AmethystPlugin {
     }
 
     @Override
-    public void disable() {
+    public void onDisable() {
         for (Module module : modules) {
             module.disable();
         }

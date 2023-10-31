@@ -26,10 +26,10 @@ public class BorderRunnable implements Runnable {
     private void showParticles(Player player) {
         double pX = player.getLocation().getX();
         double pZ = player.getLocation().getZ();
-        double maxX = worldManager.getGlobal().getMaxX();
-        double minX = worldManager.getGlobal().getMinX();
-        double maxZ = worldManager.getGlobal().getMaxZ();
-        double minZ = worldManager.getGlobal().getMinZ();
+        double maxX = worldManager.getGlobal().getMaxX() + 1;
+        double minX = worldManager.getGlobal().getMinX() - 1;
+        double maxZ = worldManager.getGlobal().getMaxZ() + 1;
+        double minZ = worldManager.getGlobal().getMinZ() - 1;
 
         if (playerIsNearBorder(maxX, pX)) {
             displayParticlesOnZAxis(player, maxX, maxZ, minZ);
@@ -44,18 +44,6 @@ public class BorderRunnable implements Runnable {
             displayParticlesOnXAxis(player, minZ, maxX, minX);
         }
     }
-
-//    private boolean playerNotNearBorder(Player player) {
-//        double pX = player.getLocation().getX();
-//        double pZ = player.getLocation().getZ();
-//
-//        if (playerIsNearBorder(worldManager.getGlobal().getMaxX(), pX)) return false;
-//        if (playerIsNearBorder(worldManager.getGlobal().getMinX(), pX)) return false;
-//        if (playerIsNearBorder(worldManager.getGlobal().getMaxZ(), pZ)) return false;
-//        if (playerIsNearBorder(worldManager.getGlobal().getMinZ(), pZ)) return false;
-//
-//        return true;
-//    }
 
     private boolean playerIsNearBorder(double edge, double point) {
         double visibleDistance = 5;

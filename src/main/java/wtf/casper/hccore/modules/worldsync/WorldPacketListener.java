@@ -4,7 +4,6 @@ import wtf.casper.amethyst.libs.packetevents.api.event.simple.PacketLoginReceive
 import wtf.casper.amethyst.libs.packetevents.api.event.simple.PacketLoginSendEvent;
 import wtf.casper.amethyst.libs.packetevents.api.event.simple.PacketPlaySendEvent;
 import wtf.casper.amethyst.libs.packetevents.api.event.simple.PacketStatusReceiveEvent;
-import wtf.casper.amethyst.libs.packetevents.api.wrapper.PacketWrapper;
 import wtf.casper.amethyst.paper.utils.PacketListener;
 
 public class WorldPacketListener extends PacketListener {
