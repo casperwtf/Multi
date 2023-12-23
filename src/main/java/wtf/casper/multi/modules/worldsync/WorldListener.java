@@ -1,6 +1,8 @@
-package wtf.casper.hccore.modules.worldsync;
+package wtf.casper.multi.modules.worldsync;
 
+import com.destroystokyo.paper.event.entity.PreCreatureSpawnEvent;
 import com.google.auto.service.AutoService;
+import lombok.extern.java.Log;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
@@ -16,113 +18,153 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
+import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.world.ChunkUnloadEvent;
+import org.bukkit.event.world.TimeSkipEvent;
 import org.spigotmc.event.player.PlayerSpawnLocationEvent;
 import wtf.casper.amethyst.core.inject.Inject;
 import wtf.casper.amethyst.paper.events.AsyncPlayerMoveEvent;
-import wtf.casper.hccore.modules.worldsync.data.BlockLocation;
-import wtf.casper.hccore.modules.worldsync.data.BlockSnapshot;
-import wtf.casper.hccore.modules.worldsync.data.ServerBasedWorld;
+import wtf.casper.amethyst.paper.hooks.combat.CombatManager;
+import wtf.casper.multi.modules.worldsync.data.BlockLocation;
+import wtf.casper.multi.modules.worldsync.data.BlockSnapshot;
+import wtf.casper.multi.modules.worldsync.data.ServerBasedWorld;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
-@AutoService(Listener.class)
+@AutoService(Listener.class) @Log
 public class WorldListener implements Listener {
     private final WorldManager worldManager = Inject.get(WorldManager.class);
     private final Map<UUID, Location> protection = new HashMap<>();
 
     private final BlockData airBlockData = Material.AIR.createBlockData();
 
-
     @EventHandler
     public void onPlayerDamage(EntityDamageEvent event) {
         if (event.getEntity() instanceof Player player) {
-            if (worldManager.aroundBorder(player.getLocation().getBlockX(), player.getLocation().getBlockZ(), 8)) {
+            if (worldManager.aroundBorder(player.getLocation().getBlockX(), player.getLocation().getBlockZ(), 16)) {
                 event.setCancelled(true);
             }
         }
     }
 
-    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
-    public void onBlockPlace(BlockPlaceEvent event) {
-        if (worldManager.aroundBorder(event.getBlock().getX(), event.getBlock().getZ(), 8)) {
+    @EventHandler
+    public void onEntitySpawn(PreCreatureSpawnEvent event) {
+        if (worldManager.getGlobal().outsideBorder(event.getSpawnLocation().getBlockX(), event.getSpawnLocation().getBlockZ())) {
             event.setCancelled(true);
-        } else {
-            emit(event.getBlock().getLocation(), airBlockData);
+        }
+    }
+
+    @EventHandler
+    public void onItemDrop(PlayerDropItemEvent event) {
+        if (worldManager.aroundBorder(event.getPlayer().getLocation().getBlockX(), event.getPlayer().getLocation().getBlockZ(), 16)) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onChunkUnload(ChunkUnloadEvent event) {
+        if (worldManager.outsideBorder(event.getChunk().getX() * 16, event.getChunk().getZ() * 16)) {
+            event.setSaveChunk(false);
         }
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
-    public void onBlockBreak(BlockBreakEvent event) {
-        if (worldManager.aroundBorder(event.getBlock().getX(), event.getBlock().getZ(), 8)) {
+    public void onBlockPlace(BlockPlaceEvent event) {
+        if (!worldManager.getWorld().withinBorder(event.getBlock().getLocation().getBlockX(), event.getBlock().getLocation().getBlockZ())) {
             event.setCancelled(true);
-        } else {
-            emit(event.getBlock().getLocation(), airBlockData);
+            return;
+        }
+
+        if (worldManager.getWorld().aroundBorder(event.getBlock().getLocation().getBlockX(), event.getBlock().getLocation().getBlockZ(), 16)) {
+            event.setCancelled(true);
+            return;
+        }
+
+//        emit(event.getBlock().getLocation(), event.getBlockReplacedState().getBlockData());
+    }
+
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
+    public void onBlockBreak(BlockBreakEvent event) {
+        if (!worldManager.getWorld().withinBorder(event.getBlock().getLocation().getBlockX(), event.getBlock().getLocation().getBlockZ())) {
+            event.setCancelled(true);
+            return;
+        }
+
+        if (worldManager.getWorld().aroundBorder(event.getBlock().getLocation().getBlockX(), event.getBlock().getLocation().getBlockZ(), 16)) {
+            event.setCancelled(true);
+            return;
+        }
+
+//        emit(event.getBlock().getLocation(), airBlockData);
+    }
+
+    @EventHandler
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        if (event.getClickedBlock() == null) {
+            return;
+        }
+
+        if (!worldManager.getWorld().withinBorder(event.getClickedBlock().getLocation().getBlockX(), event.getClickedBlock().getLocation().getBlockZ())) {
+            event.setCancelled(true);
+            return;
         }
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onBlockBurn(BlockBurnEvent event) {
-        emit(event.getBlock().getLocation(), event.getBlock().getBlockData());
-    }
-
-    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
-    public void onBlockDamage(BlockDamageEvent event) {
-        emit(event.getBlock().getLocation(), event.getBlock().getBlockData());
+        cancel(event, event.getBlock().getLocation());
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onBlockExplode(BlockExplodeEvent event) {
         for (Block block : event.blockList()) {
-            emit(block.getLocation(), block.getBlockData());
+            cancel(event, block.getLocation());
         }
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     private void onBlockFade(BlockFadeEvent event) {
-        emit(event.getBlock().getLocation(), event.getBlock().getBlockData());
+        cancel(event, event.getBlock().getLocation());
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onBlockFertilize(BlockFertilizeEvent event) {
         for (BlockState blockState : event.getBlocks()) {
-            emit(blockState.getLocation(), blockState.getBlockData());
+            cancel(event, blockState.getLocation());
         }
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onBlockIgnite(BlockIgniteEvent event) {
-        emit(event.getBlock().getLocation(), event.getBlock().getBlockData());
+        cancel(event, event.getBlock().getLocation());
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onBlockMultiPlace(BlockMultiPlaceEvent event) {
         for (BlockState blockState : event.getReplacedBlockStates()) {
-            emit(blockState.getLocation(), blockState.getBlockData());
+            cancel(event, blockState.getLocation());
         }
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onEntityBlockForm(EntityBlockFormEvent event) {
-        emit(event.getBlock().getLocation(), event.getBlock().getBlockData());
+        cancel(event, event.getBlock().getLocation());
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onSignChange(SignChangeEvent event) {
-        emit(event.getBlock().getLocation(), event.getBlock().getBlockData());
+        cancel(event, event.getBlock().getLocation());
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onEntityChangeBlock(EntityChangeBlockEvent event) {
-        emit(event.getBlock().getLocation(), event.getBlock().getBlockData());
-    }
-
-    @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
-    public void onBlockRedstone(BlockRedstoneEvent event) {
-        emit(event.getBlock().getLocation(), event.getBlock().getBlockData());
+        cancel(event, event.getBlock().getLocation());
     }
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.HIGHEST)
@@ -190,34 +232,79 @@ public class WorldListener implements Listener {
     }
 
     @EventHandler
+    public void onWorldChangeTime(TimeSkipEvent event) {
+        event.setCancelled(true); //TODO: implement global time skip
+    }
+
+    @EventHandler
+    public void onAsyncPlayerJoin(AsyncPlayerPreLoginEvent event) {
+        if (!worldManager.isReady()) {
+            event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_FULL, "Server is still loading, please try again in a few seconds.");
+        }
+    }
+
+    @EventHandler
+    public void onPlayerTryLeaveInCombat(AsyncPlayerMoveEvent event) {
+        if (!event.hasChangedBlock()) {
+            return;
+        }
+
+        if (!worldManager.getWorld().aroundBorderWithin(event.getTo().getBlockX(), event.getTo().getBlockZ(), 16)) {
+            return;
+        }
+
+        if (CombatManager.isInCombat(event.getPlayer())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
     public void onLeaveWorld(AsyncPlayerMoveEvent event) {
         if (!event.hasChangedBlock()) return;
-        if (worldManager.getWorld().withinBorder(event.getTo().getBlockX(), event.getTo().getBlockZ())) return;
+
         if (protection.containsKey(event.getPlayer().getUniqueId())) {
-            if (protection.get(event.getPlayer().getUniqueId()).distanceSquared(event.getTo()) < 3) return;
+
+            if (protection.get(event.getPlayer().getUniqueId()).distanceSquared(event.getTo()) < 3) {
+                return;
+            }
+
             protection.remove(event.getPlayer().getUniqueId());
             return;
         }
 
-        if (worldManager.getTeleporting().contains(event.getPlayer().getUniqueId())) {
+        Optional<ServerBasedWorld> toWorld = worldManager.getWorld(event.getTo().getBlockX(), event.getTo().getBlockZ());
+
+        if (toWorld.isEmpty()) {
+            event.setCancelled(true);
             return;
         }
 
-        ServerBasedWorld thisWorld = null;
-        for (ServerBasedWorld world : worldManager.getWorlds()) {
-            if (world.withinBorder(event.getTo().getBlockX(), event.getTo().getBlockZ())) {
-                Location l = event.getTo();
-                worldManager.getTeleporting().add(event.getPlayer().getUniqueId());
-                worldManager.getRedisConnection().sync().set("world:" + event.getPlayer().getUniqueId(), l.getWorld().getName()+","+l.getX()+","+l.getY()+","+l.getZ()+","+l.getYaw()+","+l.getPitch());
-                world.tp(event.getPlayer());
-                thisWorld = world;
-                break;
+        if (toWorld.get().getName().equals(worldManager.getWorld().getName())) {
+            return;
+        }
+
+        if (protection.containsKey(event.getPlayer().getUniqueId())) {
+            if (protection.get(event.getPlayer().getUniqueId()).distanceSquared(event.getTo()) < 3) {
+                return;
+            }
+
+            protection.remove(event.getPlayer().getUniqueId());
+        }
+
+        if (worldManager.getTeleporting().containsKey(event.getPlayer().getUniqueId())) {
+            if (worldManager.getTeleporting().get(event.getPlayer().getUniqueId()).equals(toWorld.get().getName())) {
+                event.setCancelled(true);
+                return;
             }
         }
 
-        if (thisWorld == null) {
-            event.setCancelled(true);
-        }
+        worldManager.getTeleporting().put(event.getPlayer().getUniqueId(), toWorld.get().getName());
+        toWorld.get().tp(event.getPlayer());
+
+        Location l = event.getPlayer().getLocation();
+        worldManager.getRedisConnection().sync().set("world:" + event.getPlayer().getUniqueId(), l.getWorld().getName() + "," + l.getX() + "," + l.getY() + "," + l.getZ() + "," + l.getYaw() + "," + l.getPitch());
+
+        log.info("Teleporting " + event.getPlayer().getName() + " from " + worldManager.getWorld().getName() + " to " + toWorld.get().getName());
     }
 
     @EventHandler
@@ -241,17 +328,23 @@ public class WorldListener implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         worldManager.getTeleporting().remove(event.getPlayer().getUniqueId());
+
+        Location l = event.getPlayer().getLocation();
+        worldManager.getRedisConnection().sync().set("world:" + event.getPlayer().getUniqueId(), l.getWorld().getName() + "," + l.getX() + "," + l.getY() + "," + l.getZ() + "," + l.getYaw() + "," + l.getPitch());
     }
 
     private void emit(Location location, BlockData blockData) {
-        if (!worldManager.getWorld().aroundBorder(location.getBlockX(), location.getBlockZ())) return;
+        if (!worldManager.getWorld().aroundBorder(location.getBlockX(), location.getBlockZ()))
+            return;
 
         BlockSnapshot snapshot = new BlockSnapshot(new BlockLocation(location), blockData.getAsString());
         worldManager.publish(snapshot);
     }
 
     private void cancel(Cancellable cancellable, Location location) {
-        if (!worldManager.getWorld().aroundBorderWithin(location.getBlockX(), location.getBlockZ())) return;
+        if (!worldManager.getWorld().aroundBorderWithin(location.getBlockX(), location.getBlockZ())) {
+            return;
+        }
 
         cancellable.setCancelled(true);
     }

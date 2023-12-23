@@ -1,4 +1,4 @@
-package wtf.casper.hccore;
+package wtf.casper.multi;
 
 public interface Module {
 

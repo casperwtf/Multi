@@ -1,4 +1,4 @@
-package wtf.casper.hccore.modules.worldsync.data;
+package wtf.casper.multi.modules.worldsync.data;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -6,9 +6,9 @@ import lombok.ToString;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 
-import java.util.Objects;
-
-@Getter @EqualsAndHashCode @ToString
+@Getter
+@EqualsAndHashCode
+@ToString
 public class BlockLocation {
     private final String world;
     private final int x;

@@ -1,4 +1,4 @@
-package wtf.casper.hccore.modules.base;
+package wtf.casper.multi.modules.base;
 
 import lombok.Getter;
 import lombok.Setter;
@@ -10,7 +10,8 @@ import wtf.casper.amethyst.libs.storageapi.id.Id;
 import javax.annotation.Nullable;
 import java.util.*;
 
-@Getter @Setter
+@Getter
+@Setter
 public class HCUser {
 
     public HCUser(UUID id) {

@@ -1,4 +1,4 @@
-package wtf.casper.hccore.modules.worldsync;
+package wtf.casper.multi.modules.worldsync;
 
 import org.bukkit.Bukkit;
 import org.bukkit.Color;
@@ -11,9 +11,14 @@ public class BorderRunnable implements Runnable {
     private final WorldManager worldManager = Inject.get(WorldManager.class);
 
     private final Particle particle = Particle.REDSTONE;
-    private final Particle.DustOptions data = new Particle.DustOptions(Color.RED, 3);
+    private final Particle.DustOptions data = new Particle.DustOptions(Color.RED, 2);
 
-    private final int count = 3;
+    private final int count = 2;
+
+    private double maxX = worldManager.getGlobal().getMaxX() + 1;
+    private double minX = worldManager.getGlobal().getMinX() - 1;
+    private double maxZ = worldManager.getGlobal().getMaxZ() + 1;
+    private double minZ = worldManager.getGlobal().getMinZ() - 1;
 
     @Override
     public void run() {
@@ -22,14 +27,9 @@ public class BorderRunnable implements Runnable {
         }
     }
 
-
     private void showParticles(Player player) {
         double pX = player.getLocation().getX();
         double pZ = player.getLocation().getZ();
-        double maxX = worldManager.getGlobal().getMaxX() + 1;
-        double minX = worldManager.getGlobal().getMinX() - 1;
-        double maxZ = worldManager.getGlobal().getMaxZ() + 1;
-        double minZ = worldManager.getGlobal().getMinZ() - 1;
 
         if (playerIsNearBorder(maxX, pX)) {
             displayParticlesOnZAxis(player, maxX, maxZ, minZ);
@@ -55,7 +55,9 @@ public class BorderRunnable implements Runnable {
         double centerY = p.getLocation().getY() + 0.5;
         double centerZ = Math.floor(spot) + 0.5;
 
-        for (int y = 0; y <= 15; y += 3) {
+        for (int y = 0; y <= 5; y++) {
+            y *= 3;
+
             double locYpos = centerY + (double) y;
             double locYneg = centerY - (double) y;
 

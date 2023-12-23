@@ -1,9 +1,11 @@
-package wtf.casper.hccore.modules.worldsync.data;
+package wtf.casper.multi.modules.worldsync.data;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.ToString;
+import lombok.extern.java.Log;
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Player;
@@ -11,12 +13,16 @@ import wtf.casper.amethyst.core.obj.Pair;
 import wtf.casper.amethyst.libs.boostedyaml.block.implementation.Section;
 import wtf.casper.amethyst.paper.scheduler.SchedulerUtil;
 import wtf.casper.amethyst.paper.utils.BungeeUtil;
-import wtf.casper.hccore.HCCore;
-import wtf.casper.hccore.modules.worldsync.WorldManager;
+import wtf.casper.multi.Multi;
+import wtf.casper.multi.modules.worldsync.WorldManager;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 
-@Getter @EqualsAndHashCode @ToString
+@Getter
+@EqualsAndHashCode
+@ToString
+@Log
 public class ServerBasedWorld {
     private final String name;
     private final int minX;
@@ -68,18 +74,15 @@ public class ServerBasedWorld {
         BungeeUtil.sendPlayerToServer(player, name);
     }
 
-    public void loadBorderChunks() {
+    public CompletableFuture<Void> loadBorderChunks() {
 
-        Map<UUID, Set<Pair<Integer, Integer>>> chunks = new HashMap<>();
+        List<CompletableFuture<Void>> chunks = new ArrayList<>();
 
         for (World world : Bukkit.getWorlds()) {
-            chunks.put(world.getUID(), new HashSet<>());
-
-            Set<Pair<Integer, Integer>> set = chunks.get(world.getUID());
-
             for (int x = minX; x <= maxX; x += 16) {
                 for (int z = minZ; z <= maxZ; z += 16) {
-                    if (!aroundBorderWithin(x, z)) {
+
+                    if (!aroundBorderWithin(x, z)) { // sanity check
                         continue;
                     }
 
@@ -88,45 +91,23 @@ public class ServerBasedWorld {
 
                     if (world.getEnvironment() == World.Environment.NETHER) {
                         continue;
-//                        chunkX /= 8;
-//                        chunkZ /= 8;
                     }
 
-                    if (world.isChunkLoaded(chunkX, chunkZ)) {
-                        continue;
-                    }
+                    chunks.add(world.getChunkAtAsync(chunkX, chunkZ, true).handle((chunk, throwable) -> {
+                        if (throwable != null) {
+                            log.warning("Failed to load chunk " + chunkX + ", " + chunkZ + " in world " + world.getName());
+                            throwable.printStackTrace();
+                            return null;
+                        }
 
-                    set.add(Pair.of(chunkX, chunkZ));
+                        chunk.setForceLoaded(true);
+
+                        return null;
+                    }));
                 }
             }
         }
 
-        if (chunks.isEmpty()) {
-            return;
-        }
-
-        for (UUID worldUid : chunks.keySet()) {
-            World world = Bukkit.getWorld(worldUid);
-
-            Set<Pair<Integer, Integer>> set = chunks.get(worldUid);
-            if (set.isEmpty()) {
-                continue;
-            }
-
-            HCCore plugin = HCCore.getPlugin(HCCore.class);
-            Iterator<Pair<Integer, Integer>> iterator = set.iterator();
-
-            for (int i = 0; i < Math.min(1.0, (double) chunks.size() / 10); i++) {
-                Pair<Integer, Integer> next = iterator.next();
-                Location location = world.getBlockAt(next.getFirst() * 16, 0, next.getSecond() * 16).getLocation();
-
-                SchedulerUtil.runLater(() -> {
-                    if (!world.getPluginChunkTickets(next.getFirst(), next.getSecond()).contains(plugin)) {
-                        world.loadChunk(next.getFirst(), next.getSecond());
-                        world.addPluginChunkTicket(next.getFirst(), next.getSecond(), plugin);
-                    }
-                }, location, i * 20L * 5);
-            }
-        }
+        return CompletableFuture.allOf(chunks.toArray(new CompletableFuture[0]));
     }
 }

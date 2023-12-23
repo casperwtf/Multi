@@ -1,4 +1,4 @@
-package wtf.casper.hccore.modules.worldsync.data;
+package wtf.casper.multi.modules.worldsync.data;
 
 import lombok.Getter;
 import wtf.casper.amethyst.core.mq.Message;

@@ -1,4 +1,4 @@
-package wtf.casper.hccore.modules.worldsync.data;
+package wtf.casper.multi.modules.worldsync.data;
 
 import lombok.EqualsAndHashCode;
 import lombok.Getter;
@@ -8,14 +8,13 @@ import org.bukkit.Bukkit;
 import org.bukkit.block.data.BlockData;
 import wtf.casper.amethyst.core.mq.Message;
 import wtf.casper.amethyst.libs.storageapi.id.Id;
-import wtf.casper.hccore.HCCore;
 
-import java.util.Objects;
 import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.logging.Level;
 
-@Getter @Log @EqualsAndHashCode @ToString
+@Getter
+@Log
+@EqualsAndHashCode
+@ToString
 public class BlockSnapshot implements Message {
     @Id
     private final UUID id = UUID.randomUUID();
@@ -30,6 +29,6 @@ public class BlockSnapshot implements Message {
 
     public void set() {
         BlockData blockData1 = Bukkit.createBlockData(blockData);
-        location.getLocation().getWorld().getBlockAt(location.getLocation()).setBlockData(blockData1);
+        location.getLocation().getBlock().setBlockData(blockData1, false);
     }
 }

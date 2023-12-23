@@ -1,4 +1,4 @@
-package wtf.casper.hccore.modules.worldsync;
+package wtf.casper.multi.modules.worldsync;
 
 import wtf.casper.amethyst.libs.packetevents.api.event.simple.PacketLoginReceiveEvent;
 import wtf.casper.amethyst.libs.packetevents.api.event.simple.PacketLoginSendEvent;

@@ -5,11 +5,11 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>wtf.casper</groupId>
-    <artifactId>HCCore</artifactId>
+    <artifactId>Multi</artifactId>
     <version>1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
-    <name>HCCore</name>
+    <name>Multi</name>
 
     <properties>
         <java.version>17</java.version>

@@ -1,4 +1,4 @@
-package wtf.casper.hccore;
+package wtf.casper.multi;
 
 import lombok.Getter;
 import wtf.casper.amethyst.core.inject.Inject;
@@ -10,14 +10,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Getter
-public final class HCCore extends AmethystPlugin {
+public final class Multi extends AmethystPlugin {
 
     private final List<Module> modules = new ArrayList<>();
     public static boolean DEBUG = false;
 
     @Override
     public void onLoad() {
-        Inject.bind(HCCore.class, this);
+        Inject.bind(Multi.class, this);
 
         saveDefaultConfig();
         saveConfig();

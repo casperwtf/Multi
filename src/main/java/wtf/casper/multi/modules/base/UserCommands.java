@@ -1,4 +1,4 @@
-package wtf.casper.hccore.modules.base;
+package wtf.casper.multi.modules.base;
 
 import com.google.auto.service.AutoService;
 import lombok.extern.java.Log;
@@ -9,13 +9,14 @@ import wtf.casper.amethyst.libs.cloud.commandframework.annotations.CommandMethod
 import wtf.casper.amethyst.libs.cloud.commandframework.annotations.CommandPermission;
 import wtf.casper.amethyst.paper.command.CloudCommand;
 
-@AutoService(CloudCommand.class) @Log
+@AutoService(CloudCommand.class)
+@Log
 public class UserCommands implements CloudCommand {
 
-    @CommandDescription("Test cloud command using @CommandMethod")
-    @CommandMethod("test <test>")
-    @CommandPermission("hccore.test")
-    public void test(CommandSender sender, @Argument("test") String test) {
-        log.info(test);
-    }
+//    @CommandDescription("Test cloud command using @CommandMethod")
+//    @CommandMethod("test <test>")
+//    @CommandPermission("hccore.test")
+//    public void test(CommandSender sender, @Argument("test") String test) {
+//        log.info(test);
+//    }
 }

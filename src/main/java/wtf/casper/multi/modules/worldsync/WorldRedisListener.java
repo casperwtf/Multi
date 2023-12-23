@@ -1,11 +1,11 @@
-package wtf.casper.hccore.modules.worldsync;
+package wtf.casper.multi.modules.worldsync;
 
 import wtf.casper.amethyst.core.AmethystCore;
 import wtf.casper.amethyst.core.inject.Inject;
 import wtf.casper.amethyst.libs.lettuce.pubsub.RedisPubSubListener;
-import wtf.casper.hccore.modules.worldsync.data.BlockSnapshot;
-import wtf.casper.hccore.modules.worldsync.data.BlockSnapshotBundle;
-import wtf.casper.hccore.modules.worldsync.data.BlockSnapshotFiller;
+import wtf.casper.multi.modules.worldsync.data.BlockSnapshot;
+import wtf.casper.multi.modules.worldsync.data.BlockSnapshotBundle;
+import wtf.casper.multi.modules.worldsync.data.BlockSnapshotFiller;
 
 public class WorldRedisListener implements RedisPubSubListener<String, String> {
 
@@ -13,7 +13,8 @@ public class WorldRedisListener implements RedisPubSubListener<String, String> {
 
     @Override
     public void message(String channel, String message) {
-        if (!channel.equals(WorldManager.REDIS_CHANNEL)) {
+
+        if (!channel.equals(WorldManager.REDIS_CHANNEL) || !channel.equals(WorldManager.REDIS_CHANNEL_LOCAL)) {
             return;
         }
 
@@ -23,7 +24,6 @@ public class WorldRedisListener implements RedisPubSubListener<String, String> {
         for (BlockSnapshot snapshot : bundle.getBlockSnapshots()) {
             worldManager.getWorkloadRunnable().addWorkload(new BlockSnapshotFiller(snapshot));
         }
-
     }
 
     @Override

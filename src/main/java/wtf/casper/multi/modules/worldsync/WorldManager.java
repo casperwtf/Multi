@@ -1,13 +1,12 @@
-package wtf.casper.hccore.modules.worldsync;
+package wtf.casper.multi.modules.worldsync;
 
 import com.google.auto.service.AutoService;
 import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
-import org.bukkit.World;
+import org.bukkit.entity.Player;
 import wtf.casper.amethyst.core.distributedworkload.WorkloadRunnable;
 import wtf.casper.amethyst.core.inject.Inject;
-
 import wtf.casper.amethyst.libs.boostedyaml.YamlDocument;
 import wtf.casper.amethyst.libs.lettuce.RedisClient;
 import wtf.casper.amethyst.libs.lettuce.api.StatefulRedisConnection;
@@ -16,25 +15,32 @@ import wtf.casper.amethyst.libs.storageapi.*;
 import wtf.casper.amethyst.libs.storageapi.impl.direct.fstorage.DirectJsonFStorage;
 import wtf.casper.amethyst.libs.storageapi.impl.direct.fstorage.DirectMongoFStorage;
 import wtf.casper.amethyst.paper.scheduler.SchedulerUtil;
-import wtf.casper.hccore.HCCore;
-import wtf.casper.hccore.Module;
-import wtf.casper.hccore.modules.worldsync.data.BlockSnapshot;
-import wtf.casper.hccore.modules.worldsync.data.BlockSnapshotBundle;
-import wtf.casper.hccore.modules.worldsync.data.BlockSnapshotFiller;
-import wtf.casper.hccore.modules.worldsync.data.ServerBasedWorld;
-
+import wtf.casper.multi.Multi;
+import wtf.casper.multi.Module;
+import wtf.casper.multi.modules.worldsync.data.BlockSnapshot;
+import wtf.casper.multi.modules.worldsync.data.BlockSnapshotBundle;
+import wtf.casper.multi.modules.worldsync.data.BlockSnapshotFiller;
+import wtf.casper.multi.modules.worldsync.data.ServerBasedWorld;
 
 import java.io.File;
 import java.io.IOException;
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
-@AutoService(Module.class) @Getter
+@AutoService(Module.class)
+@Getter
 public class WorldManager implements Module {
 
-    public static String REDIS_CHANNEL = "hccore:world-sync";
+    public static String REDIS_CHANNEL = "multi:world-sync:global";
+    public static String REDIS_CHANNEL_LOCAL = null;
     public static int RENDER_BLOCKS = (Bukkit.getSimulationDistance() + Bukkit.getViewDistance()) * 16;
+
     private final List<BlockSnapshot> blockSnapshots = new ArrayList<>();
-    private final HCCore plugin = Inject.get(HCCore.class);
+    private final Multi plugin = Inject.get(Multi.class);
+    private final Map<UUID, String> teleporting = new HashMap<>();
+
+    private final AtomicBoolean IS_READY = new AtomicBoolean(true);
+
     private RedisClient client;
     private YamlDocument config;
     private StatefulRedisConnection<String, String> redisConnection;
@@ -46,7 +52,6 @@ public class WorldManager implements Module {
     private ServerBasedWorld world;
     private ServerBasedWorld global;
     private List<ServerBasedWorld> worlds;
-    private Set<UUID> teleporting = new HashSet<>();
 
     @Override
     public void load() {
@@ -71,6 +76,12 @@ public class WorldManager implements Module {
 
     @Override
     public void disable() {
+
+        for (Player player : Bukkit.getOnlinePlayers()) {
+            Location l = player.getLocation();
+            getRedisConnection().sync().set("world:" + player.getUniqueId(), l.getWorld().getName() + "," + l.getX() + "," + l.getY() + "," + l.getZ() + "," + l.getYaw() + "," + l.getPitch());
+        }
+
         redisPubConnection.close();
         redisSubConnection.close();
         redisConnection.close();
@@ -118,7 +129,16 @@ public class WorldManager implements Module {
             throw new IllegalStateException("World not found");
         }
 
-        this.world.loadBorderChunks();
+//        this.IS_READY.set(false);
+//        this.world.loadBorderChunks().whenComplete((unused, throwable) -> {
+//            if (throwable != null) {
+//                throw new RuntimeException(throwable);
+//            }
+//
+//            this.IS_READY.set(true);
+//        });
+
+        REDIS_CHANNEL_LOCAL = "multi:world-sync:" + world.getName();
     }
 
     private void setupStorage() {
@@ -127,7 +147,7 @@ public class WorldManager implements Module {
         try {
             type = StorageType.valueOf(config.getString("storage.type"));
         } catch (IllegalArgumentException e) {
-            throw new IllegalStateException("Invalid storage type " + config.getString("storage.type")+ ". Valid Options: " + StorageType.values().toString());
+            throw new IllegalStateException("Invalid storage type " + config.getString("storage.type") + ". Valid Options: " + StorageType.values().toString());
         }
         switch (type) {
             case MONGODB -> {
@@ -150,7 +170,8 @@ public class WorldManager implements Module {
                         }
                 );
             }
-            default -> throw new IllegalStateException("Unexpected value: " + type);
+            default ->
+                    throw new IllegalStateException("Unexpected value: " + type);
         }
     }
 
@@ -169,6 +190,7 @@ public class WorldManager implements Module {
         }, 10, 10);
 
         SchedulerUtil.runDelayedTimerAsync(new BorderRunnable(), 100L, 10L);
+        SchedulerUtil.runDelayedTimerAsync(new InnerBorderRunnable(), 100L, 10L);
     }
 
     private void setupRedis() {
@@ -177,25 +199,9 @@ public class WorldManager implements Module {
         this.redisPubConnection = client.connectPubSub();
         this.redisSubConnection = client.connectPubSub();
         this.redisSubConnection.sync().subscribe(REDIS_CHANNEL);
+        this.redisSubConnection.sync().subscribe(REDIS_CHANNEL_LOCAL);
         this.redisSubConnection.addListener(new WorldRedisListener());
     }
-
-//    private void setupWorldBorder() {
-//        for (World bukkitWorld : plugin.getServer().getWorlds()) {
-//            int subWorldXCenter = this.world.getMinX() + ((this.world.getMaxX() - this.world.getMinX()) / 2);
-//            int subWorldZCenter = this.world.getMinZ() + ((this.world.getMaxZ() - this.world.getMinZ()) / 2);
-//            int subWorldSize = this.world.getMaxX() - this.world.getMinX();
-//
-//            if (bukkitWorld.getEnvironment() == World.Environment.NETHER) {
-//                subWorldXCenter /= 8;
-//                subWorldZCenter /= 8;
-//                subWorldSize /= 8;
-//            }
-//
-//            bukkitWorld.getWorldBorder().setCenter(subWorldXCenter, subWorldZCenter);
-//            bukkitWorld.getWorldBorder().setSize(subWorldSize + 10);
-//        }
-//    }
 
     public boolean outsideBorder(Location location) {
         return outsideBorder(location.getBlockX(), location.getBlockZ());
@@ -230,6 +236,29 @@ public class WorldManager implements Module {
     public void publish(BlockSnapshot blockSnapshot) {
         blockStateStorage.save(blockSnapshot);
         this.blockSnapshots.add(blockSnapshot);
+    }
+
+    public List<String> impactedWorlds(int x, int z) {
+        List<String> impactedWorlds = new ArrayList<>();
+        for (ServerBasedWorld serverBasedWorld : getWorlds()) {
+            if (serverBasedWorld.aroundBorderWithin(x, z)) {
+                impactedWorlds.add(serverBasedWorld.getName());
+            }
+        }
+        return impactedWorlds;
+    }
+
+    public Optional<ServerBasedWorld> getWorld(int x, int z) {
+        for (ServerBasedWorld serverBasedWorld : getWorlds()) {
+            if (serverBasedWorld.withinBorder(x, z)) {
+                return Optional.of(serverBasedWorld);
+            }
+        }
+        return Optional.empty();
+    }
+
+    public boolean isReady() {
+        return IS_READY.get();
     }
 
     public void loadFromTime(long time) {

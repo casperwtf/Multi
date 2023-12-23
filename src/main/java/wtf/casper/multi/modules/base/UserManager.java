@@ -1,4 +1,4 @@
-package wtf.casper.hccore.modules.base;
+package wtf.casper.multi.modules.base;
 
 import com.google.auto.service.AutoService;
 import wtf.casper.amethyst.core.inject.Inject;
@@ -8,16 +8,16 @@ import wtf.casper.amethyst.libs.storageapi.FieldStorage;
 import wtf.casper.amethyst.libs.storageapi.StorageType;
 import wtf.casper.amethyst.libs.storageapi.impl.direct.fstorage.DirectJsonFStorage;
 import wtf.casper.amethyst.libs.storageapi.impl.direct.fstorage.DirectMongoFStorage;
-import wtf.casper.hccore.HCCore;
-import wtf.casper.hccore.Module;
+import wtf.casper.multi.Multi;
+import wtf.casper.multi.Module;
 
 import java.io.File;
 import java.util.UUID;
 
-@AutoService(Module.class)
+//@AutoService(Module.class)
 public class UserManager implements Module {
 
-    private final HCCore plugin = Inject.get(HCCore.class);
+    private final Multi plugin = Inject.get(Multi.class);
     private FieldStorage<UUID, HCUser> userStorage;
     private YamlDocument userModuleConfig;
 
@@ -47,7 +47,8 @@ public class UserManager implements Module {
                         HCUser::new
                 );
             }
-            default -> throw new IllegalStateException("Unexpected value: " + type);
+            default ->
+                    throw new IllegalStateException("Unexpected value: " + type);
         }
     }
 

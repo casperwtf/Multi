@@ -1,4 +1,4 @@
-package wtf.casper.hccore.modules.worldsync.data;
+package wtf.casper.multi.modules.worldsync.data;
 
 import wtf.casper.amethyst.core.distributedworkload.Workload;
 
@@ -15,7 +15,7 @@ public class BlockSnapshotFiller implements Workload {
         if (!blockSnapshot.getLocation().getLocation().isChunkLoaded()) {
             blockSnapshot.getLocation().getLocation().getWorld()
                     .getChunkAtAsync(blockSnapshot.getLocation().getLocation())
-                    .thenRun(this::compute);
+                    .thenRun(blockSnapshot::set);
 
             return;
         }
