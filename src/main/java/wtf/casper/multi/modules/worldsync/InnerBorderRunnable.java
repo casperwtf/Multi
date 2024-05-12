@@ -15,15 +15,15 @@ public class InnerBorderRunnable implements Runnable {
 
     private final int count = 2;
 
-    private double maxX = worldManager.getWorld().getMaxX() + 1;
-    private double minX = worldManager.getWorld().getMinX() - 1;
-    private double maxZ = worldManager.getWorld().getMaxZ() + 1;
-    private double minZ = worldManager.getWorld().getMinZ() - 1;
+    private final double maxX = worldManager.getWorld().getMaxX() + 1;
+    private final double minX = worldManager.getWorld().getMinX() - 1;
+    private final double maxZ = worldManager.getWorld().getMaxZ() + 1;
+    private final double minZ = worldManager.getWorld().getMinZ() - 1;
 
-    private double maxXGlobal = worldManager.getGlobal().getMaxX() + 1;
-    private double minXGlobal = worldManager.getGlobal().getMinX() - 1;
-    private double maxZGlobal = worldManager.getGlobal().getMaxZ() + 1;
-    private double minZGlobal = worldManager.getGlobal().getMinZ() - 1;
+    private final double maxXGlobal = worldManager.getGlobal().getMaxX() + 1;
+    private final double minXGlobal = worldManager.getGlobal().getMinX() - 1;
+    private final double maxZGlobal = worldManager.getGlobal().getMaxZ() + 1;
+    private final double minZGlobal = worldManager.getGlobal().getMinZ() - 1;
 
 
     @Override
@@ -54,7 +54,8 @@ public class InnerBorderRunnable implements Runnable {
 
     private boolean playerIsNearBorder(double edge, double point) {
         double visibleDistance = 8;
-        return (edge - point) * (edge - point) <= visibleDistance * visibleDistance;
+        double distance = edge - point;
+        return distance * distance <= visibleDistance * visibleDistance;
     }
 
     private void displayParticlesOnXAxis(Player p, double spot, double MAX, double MIN) {

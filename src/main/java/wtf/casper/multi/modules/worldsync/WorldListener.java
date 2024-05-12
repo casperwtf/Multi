@@ -2,11 +2,9 @@ package wtf.casper.multi.modules.worldsync;
 
 import com.destroystokyo.paper.event.entity.PreCreatureSpawnEvent;
 import com.google.auto.service.AutoService;
+import io.papermc.paper.event.entity.EntityMoveEvent;
 import lombok.extern.java.Log;
-import org.bukkit.Bukkit;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.World;
+import org.bukkit.*;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
@@ -18,16 +16,13 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.*;
 import org.bukkit.event.entity.EntityChangeBlockEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
-import org.bukkit.event.player.AsyncPlayerPreLoginEvent;
-import org.bukkit.event.player.PlayerDropItemEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.event.player.*;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.event.world.TimeSkipEvent;
 import org.spigotmc.event.player.PlayerSpawnLocationEvent;
 import wtf.casper.amethyst.core.inject.Inject;
 import wtf.casper.amethyst.paper.events.AsyncPlayerMoveEvent;
-import wtf.casper.amethyst.paper.hooks.combat.CombatManager;
+import wtf.casper.amethyst.paper.hooks.combat.CombatController;
 import wtf.casper.multi.modules.worldsync.data.BlockLocation;
 import wtf.casper.multi.modules.worldsync.data.BlockSnapshot;
 import wtf.casper.multi.modules.worldsync.data.ServerBasedWorld;
@@ -45,6 +40,17 @@ public class WorldListener implements Listener {
     private final BlockData airBlockData = Material.AIR.createBlockData();
 
     @EventHandler
+    public void onTeleport(PlayerTeleportEvent event) {
+        if (worldManager.getWorld().withinBorder(event.getTo().getBlockX(), event.getTo().getBlockZ())) {
+            return;
+        }
+
+        Chunk
+        event.setCancelled(true);
+//        worldManager.
+    }
+
+                           @EventHandler
     public void onPlayerDamage(EntityDamageEvent event) {
         if (event.getEntity() instanceof Player player) {
             if (worldManager.aroundBorder(player.getLocation().getBlockX(), player.getLocation().getBlockZ(), 16)) {
@@ -55,7 +61,20 @@ public class WorldListener implements Listener {
 
     @EventHandler
     public void onEntitySpawn(PreCreatureSpawnEvent event) {
-        if (worldManager.getGlobal().outsideBorder(event.getSpawnLocation().getBlockX(), event.getSpawnLocation().getBlockZ())) {
+        if (worldManager.getGlobal().aroundBorder(event.getSpawnLocation().getBlockX(), event.getSpawnLocation().getBlockZ())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler
+    public void onEntityMove(EntityMoveEvent event) {
+        if (event.getEntity() instanceof Player) {
+            return;
+        }
+
+        Location eventTo = event.getTo();
+
+        if (worldManager.aroundBorder(eventTo.getBlockX(), eventTo.getBlockZ(), 16)) {
             event.setCancelled(true);
         }
     }
@@ -232,11 +251,6 @@ public class WorldListener implements Listener {
     }
 
     @EventHandler
-    public void onWorldChangeTime(TimeSkipEvent event) {
-        event.setCancelled(true); //TODO: implement global time skip
-    }
-
-    @EventHandler
     public void onAsyncPlayerJoin(AsyncPlayerPreLoginEvent event) {
         if (!worldManager.isReady()) {
             event.disallow(AsyncPlayerPreLoginEvent.Result.KICK_FULL, "Server is still loading, please try again in a few seconds.");
@@ -253,7 +267,7 @@ public class WorldListener implements Listener {
             return;
         }
 
-        if (CombatManager.isInCombat(event.getPlayer())) {
+        if (CombatController.getHook().getAttacker(event.getPlayer()).isPresent()) {
             event.setCancelled(true);
         }
     }

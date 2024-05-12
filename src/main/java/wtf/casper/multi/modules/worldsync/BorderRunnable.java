@@ -11,14 +11,14 @@ public class BorderRunnable implements Runnable {
     private final WorldManager worldManager = Inject.get(WorldManager.class);
 
     private final Particle particle = Particle.REDSTONE;
-    private final Particle.DustOptions data = new Particle.DustOptions(Color.RED, 2);
+    private final Particle.DustOptions data = new Particle.DustOptions(Color.RED, 1);
 
     private final int count = 2;
 
-    private double maxX = worldManager.getGlobal().getMaxX() + 1;
-    private double minX = worldManager.getGlobal().getMinX() - 1;
-    private double maxZ = worldManager.getGlobal().getMaxZ() + 1;
-    private double minZ = worldManager.getGlobal().getMinZ() - 1;
+    private final double maxX = worldManager.getGlobal().getMaxX() + 1;
+    private final double minX = worldManager.getGlobal().getMinX() - 1;
+    private final double maxZ = worldManager.getGlobal().getMaxZ() + 1;
+    private final double minZ = worldManager.getGlobal().getMinZ() - 1;
 
     @Override
     public void run() {

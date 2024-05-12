@@ -29,17 +29,19 @@ public class ServerBasedWorld {
     private final int minZ;
     private final int maxX;
     private final int maxZ;
+    private final boolean isMaster;
 
-    public ServerBasedWorld(String name, int minX, int minZ, int maxX, int maxZ) {
+    public ServerBasedWorld(String name, int minX, int minZ, int maxX, int maxZ, boolean isMaster) {
         this.name = name;
         this.minX = Math.min(minX, maxX);
         this.minZ = Math.min(minZ, maxZ);
         this.maxX = Math.max(minX, maxX);
         this.maxZ = Math.max(minZ, maxZ);
+        this.isMaster = isMaster;
     }
 
     public ServerBasedWorld(String key, Section section) {
-        this(key, section.getInt("min-x"), section.getInt("min-z"), section.getInt("max-x"), section.getInt("max-z"));
+        this(key, section.getInt("min-x"), section.getInt("min-z"), section.getInt("max-x"), section.getInt("max-z"), section.getBoolean("master", false));
     }
 
     public boolean outsideBorder(int x, int z) {
@@ -67,7 +69,7 @@ public class ServerBasedWorld {
     }
 
     public boolean aroundBorderWithin(int x, int z, int radius) {
-        return aroundBorder(x, z, radius) && withinBorder(x, z);
+        return withinBorder(x, z) && aroundBorder(x, z, radius);
     }
 
     public void tp(Player player) {
@@ -75,10 +77,13 @@ public class ServerBasedWorld {
     }
 
     public CompletableFuture<Void> loadBorderChunks() {
-
         List<CompletableFuture<Void>> chunks = new ArrayList<>();
 
         for (World world : Bukkit.getWorlds()) {
+            if (world.getEnvironment() == World.Environment.NETHER) {
+                continue;
+            }
+
             for (int x = minX; x <= maxX; x += 16) {
                 for (int z = minZ; z <= maxZ; z += 16) {
 
@@ -88,10 +93,6 @@ public class ServerBasedWorld {
 
                     int chunkX = x >> 4;
                     int chunkZ = z >> 4;
-
-                    if (world.getEnvironment() == World.Environment.NETHER) {
-                        continue;
-                    }
 
                     chunks.add(world.getChunkAtAsync(chunkX, chunkZ, true).handle((chunk, throwable) -> {
                         if (throwable != null) {

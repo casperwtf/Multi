@@ -7,9 +7,12 @@ import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import wtf.casper.amethyst.core.distributedworkload.WorkloadRunnable;
 import wtf.casper.amethyst.core.inject.Inject;
+import wtf.casper.amethyst.core.utils.ServiceUtil;
 import wtf.casper.amethyst.libs.boostedyaml.YamlDocument;
+import wtf.casper.amethyst.libs.boostedyaml.block.implementation.Section;
 import wtf.casper.amethyst.libs.lettuce.RedisClient;
 import wtf.casper.amethyst.libs.lettuce.api.StatefulRedisConnection;
+import wtf.casper.amethyst.libs.lettuce.pubsub.RedisPubSubListener;
 import wtf.casper.amethyst.libs.lettuce.pubsub.StatefulRedisPubSubConnection;
 import wtf.casper.amethyst.libs.storageapi.*;
 import wtf.casper.amethyst.libs.storageapi.impl.direct.fstorage.DirectJsonFStorage;
@@ -21,6 +24,8 @@ import wtf.casper.multi.modules.worldsync.data.BlockSnapshot;
 import wtf.casper.multi.modules.worldsync.data.BlockSnapshotBundle;
 import wtf.casper.multi.modules.worldsync.data.BlockSnapshotFiller;
 import wtf.casper.multi.modules.worldsync.data.ServerBasedWorld;
+import wtf.casper.multi.modules.worldsync.redis.BlockSnapshotBundleListener;
+import wtf.casper.multi.packets.worldsync.WorldSyncRedisListener;
 
 import java.io.File;
 import java.io.IOException;
@@ -123,27 +128,27 @@ public class WorldManager implements Module {
             globalMaxZ = Math.max(globalMaxZ, serverBasedWorld.getMaxZ());
         }
 
-        this.global = new ServerBasedWorld("global", globalMinX, globalMinZ, globalMaxX, globalMaxZ);
+        this.global = new ServerBasedWorld("global", globalMinX, globalMinZ, globalMaxX, globalMaxZ, false);
 
         if (this.world == null) {
             throw new IllegalStateException("World not found");
         }
 
-//        this.IS_READY.set(false);
-//        this.world.loadBorderChunks().whenComplete((unused, throwable) -> {
-//            if (throwable != null) {
-//                throw new RuntimeException(throwable);
-//            }
-//
-//            this.IS_READY.set(true);
-//        });
+        this.IS_READY.set(false);
+        this.world.loadBorderChunks().whenComplete((unused, throwable) -> {
+            if (throwable != null) {
+                throw new RuntimeException(throwable);
+            }
+
+            this.IS_READY.set(true);
+        });
 
         REDIS_CHANNEL_LOCAL = "multi:world-sync:" + world.getName();
     }
 
     private void setupStorage() {
         this.blockStateStorage = null;
-        StorageType type = null;
+        StorageType type;
         try {
             type = StorageType.valueOf(config.getString("storage.type"));
         } catch (IllegalArgumentException e) {
@@ -154,7 +159,7 @@ public class WorldManager implements Module {
                 this.blockStateStorage = new DirectMongoFStorage<>(
                         UUID.class,
                         BlockSnapshot.class,
-                        Credentials.from(config, "storage"),
+                        fromConfig(getConfig().getSection("storage")),
                         uuid -> {
                             throw new IllegalStateException("BlockSnapshot must be loaded from storage");
                         }
@@ -170,8 +175,7 @@ public class WorldManager implements Module {
                         }
                 );
             }
-            default ->
-                    throw new IllegalStateException("Unexpected value: " + type);
+            default -> throw new IllegalStateException("Unexpected value: " + type);
         }
     }
 
@@ -185,7 +189,7 @@ public class WorldManager implements Module {
                 return;
             }
 
-            this.redisPubConnection.async().publish(REDIS_CHANNEL, new BlockSnapshotBundle(blockSnapshots).serialize());
+            this.redisPubConnection.async().publish(REDIS_CHANNEL, new BlockSnapshotBundle(blockSnapshots).jsonSerialize());
             this.blockSnapshots.clear();
         }, 10, 10);
 
@@ -199,8 +203,34 @@ public class WorldManager implements Module {
         this.redisPubConnection = client.connectPubSub();
         this.redisSubConnection = client.connectPubSub();
         this.redisSubConnection.sync().subscribe(REDIS_CHANNEL);
-        this.redisSubConnection.sync().subscribe(REDIS_CHANNEL_LOCAL);
-        this.redisSubConnection.addListener(new WorldRedisListener());
+        if (REDIS_CHANNEL_LOCAL != null) {
+            this.redisSubConnection.sync().subscribe(REDIS_CHANNEL_LOCAL);
+        } else {
+            throw new IllegalStateException("REDIS_CHANNEL_LOCAL is null");
+        }
+
+        for (WorldSyncRedisListener listener : ServiceUtil.getServices(WorldSyncRedisListener.class, List.of())) {
+            try {
+                this.redisSubConnection.addListener((RedisPubSubListener<String, String>) listener);
+            } catch (Exception e) {
+                System.out.println("Failed to add listener " + listener.getClass().getSimpleName() + " to redis connection");
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    private Credentials fromConfig(Section section) {
+        return Credentials.of(
+                StorageType.valueOf(section.getString("type")),
+                section.getString("host"),
+                section.getString("username"),
+                section.getString("password"),
+                section.getString("database"),
+                section.getString("collection"),
+                section.getString("table"),
+                section.getString("uri"),
+                section.getInt("port")
+        );
     }
 
     public boolean outsideBorder(Location location) {
@@ -231,6 +261,10 @@ public class WorldManager implements Module {
             }
         }
         return false;
+    }
+
+    public boolean isMaster() {
+        return world.isMaster();
     }
 
     public void publish(BlockSnapshot blockSnapshot) {
