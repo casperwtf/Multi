@@ -24,7 +24,6 @@ import wtf.casper.multi.modules.worldsync.data.BlockSnapshot;
 import wtf.casper.multi.modules.worldsync.data.BlockSnapshotBundle;
 import wtf.casper.multi.modules.worldsync.data.BlockSnapshotFiller;
 import wtf.casper.multi.modules.worldsync.data.ServerBasedWorld;
-import wtf.casper.multi.modules.worldsync.redis.BlockSnapshotBundleListener;
 import wtf.casper.multi.packets.worldsync.WorldSyncRedisListener;
 
 import java.io.File;
@@ -42,7 +41,6 @@ public class WorldManager implements Module {
 
     private final List<BlockSnapshot> blockSnapshots = new ArrayList<>();
     private final Multi plugin = Inject.get(Multi.class);
-    private final Map<UUID, String> teleporting = new HashMap<>();
 
     private final AtomicBoolean IS_READY = new AtomicBoolean(true);
 
@@ -232,6 +230,61 @@ public class WorldManager implements Module {
                 section.getInt("port")
         );
     }
+
+    // Aliases for the world listener static methods so you can do it via the world manager
+    public void markToNotSaveLocation(Player player) {
+        markToNotSaveLocation(player.getUniqueId());
+    }
+
+    public void markToNotSaveLocation(UUID uuid) {
+        WorldListener.dontSave(uuid);
+    }
+
+    public void removeMarkToNotSaveLocation(Player player) {
+        removeMarkToNotSaveLocation(player.getUniqueId());
+    }
+
+    public void removeMarkToNotSaveLocation(UUID uuid) {
+        WorldListener.doSave(uuid);
+    }
+
+    public void setLastLocation(Player player, Location location) {
+        setLastLocation(player.getUniqueId(), location.getWorld().getName(), location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch());
+    }
+
+    public void setLastLocation(UUID uuid, Location location) {
+        setLastLocation(uuid, location.getWorld().getName(), location.getX(), location.getY(), location.getZ(), location.getYaw(), location.getPitch());
+    }
+
+    public void setLastLocation(UUID uuid, String world, double x, double y, double z, float yaw, float pitch) {
+        getRedisConnection().sync().set("world:" + uuid, world + "," + x + "," + y + "," + z + "," + yaw + "," + pitch);
+    }
+
+    public Optional<Location> getLastLocation(Player player) {
+        return getLastLocation(player.getUniqueId());
+    }
+
+    public Optional<Location> getLastLocation(UUID uuid) {
+        String location = getRedisConnection().sync().get("world:" + uuid);
+        if (location == null) {
+            return Optional.empty();
+        }
+
+        String[] split = location.split(",");
+        if (split.length != 6) {
+            return Optional.empty();
+        }
+
+        String world = split[0];
+        double x = Double.parseDouble(split[1]);
+        double y = Double.parseDouble(split[2]);
+        double z = Double.parseDouble(split[3]);
+        float yaw = Float.parseFloat(split[4]);
+        float pitch = Float.parseFloat(split[5]);
+
+        return Optional.of(new Location(Bukkit.getWorld(world), x, y, z, yaw, pitch));
+    }
+
 
     public boolean outsideBorder(Location location) {
         return outsideBorder(location.getBlockX(), location.getBlockZ());

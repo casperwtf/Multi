@@ -26,6 +26,7 @@ import wtf.casper.amethyst.paper.hooks.combat.CombatController;
 import wtf.casper.multi.modules.worldsync.data.BlockLocation;
 import wtf.casper.multi.modules.worldsync.data.BlockSnapshot;
 import wtf.casper.multi.modules.worldsync.data.ServerBasedWorld;
+import wtf.casper.multi.modules.worldsync.utils.TeleportUtil;
 
 import java.util.*;
 
@@ -36,7 +37,7 @@ public class WorldListener implements Listener {
 
     private final BlockData airBlockData = Material.AIR.createBlockData();
 
-    private static final List<UUID> DONT_SAVE = new ArrayList<>();
+    private static final List<UUID> DONT_SAVE = new ArrayList<>(); // used to prevent saving on quit if we want to override the last location of the user
 
     public static void dontSave(UUID uuid) {
         DONT_SAVE.add(uuid);
@@ -53,10 +54,10 @@ public class WorldListener implements Listener {
         }
 
         event.setCancelled(true);
-//        worldManager.
+        //TODO: setup system to send you to right server & coords if you TP out of bounds
     }
 
-                           @EventHandler
+    @EventHandler
     public void onPlayerDamage(EntityDamageEvent event) {
         if (event.getEntity() instanceof Player player) {
             if (worldManager.aroundBorder(player.getLocation().getBlockX(), player.getLocation().getBlockZ(), 16)) {
@@ -72,7 +73,7 @@ public class WorldListener implements Listener {
         }
     }
 
-    @EventHandler
+    @EventHandler //TODO: stress test
     public void onEntityMove(EntityMoveEvent event) {
         if (event.getEntity() instanceof Player) {
             return;
@@ -98,6 +99,7 @@ public class WorldListener implements Listener {
             event.setSaveChunk(false);
         }
     }
+    // not doing block sync across worlds atm
 
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onBlockPlace(BlockPlaceEvent event) {
@@ -114,6 +116,7 @@ public class WorldListener implements Listener {
 //        emit(event.getBlock().getLocation(), event.getBlockReplacedState().getBlockData());
     }
 
+    // not doing block sync across worlds atm
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onBlockBreak(BlockBreakEvent event) {
         if (!worldManager.getWorld().withinBorder(event.getBlock().getLocation().getBlockX(), event.getBlock().getLocation().getBlockZ())) {
@@ -141,6 +144,7 @@ public class WorldListener implements Listener {
         }
     }
 
+    // cancel all this shit
     @EventHandler(ignoreCancelled = true, priority = EventPriority.MONITOR)
     public void onBlockBurn(BlockBurnEvent event) {
         cancel(event, event.getBlock().getLocation());
@@ -311,37 +315,24 @@ public class WorldListener implements Listener {
             protection.remove(event.getPlayer().getUniqueId());
         }
 
-        if (worldManager.getTeleporting().containsKey(event.getPlayer().getUniqueId())) {
-            if (worldManager.getTeleporting().get(event.getPlayer().getUniqueId()).equals(toWorld.get().getName())) {
+        if (TeleportUtil.isTeleporting(event.getPlayer().getUniqueId())) {
+            if (TeleportUtil.getTeleportingWorld(event.getPlayer().getUniqueId()).equals(toWorld.get().getName())) {
                 event.setCancelled(true);
                 return;
             }
         }
 
-        worldManager.getTeleporting().put(event.getPlayer().getUniqueId(), toWorld.get().getName());
-        toWorld.get().tp(event.getPlayer());
-
-        Location l = event.getPlayer().getLocation();
-        worldManager.getRedisConnection().sync().set("world:" + event.getPlayer().getUniqueId(), l.getWorld().getName() + "," + l.getX() + "," + l.getY() + "," + l.getZ() + "," + l.getYaw() + "," + l.getPitch());
+        TeleportUtil.teleportPlayer(event.getPlayer(), event.getTo());
 
         log.info("Teleporting " + event.getPlayer().getName() + " from " + worldManager.getWorld().getName() + " to " + toWorld.get().getName());
     }
 
     @EventHandler
     public void onPlayerJoinSpawn(PlayerSpawnLocationEvent event) {
-        String loc = worldManager.getRedisConnection().sync().get("world:" + event.getPlayer().getUniqueId());
-        if (loc == null) {
-            return;
-        }
-        String[] split = loc.split(",");
-        if (split.length != 6) {
-            return;
-        }
-        World world = Bukkit.getWorld(split[0]);
-        if (world == null) {
-            return;
-        }
-        event.setSpawnLocation(new Location(world, Double.parseDouble(split[1]), Double.parseDouble(split[2]), Double.parseDouble(split[3]), Float.parseFloat(split[4]), Float.parseFloat(split[5])));
+        worldManager.getLastLocation(event.getPlayer().getUniqueId()).ifPresent(location -> {
+            event.setSpawnLocation(location);
+            event.getPlayer().teleport(location);
+        });
         protection.put(event.getPlayer().getUniqueId(), event.getPlayer().getLocation());
     }
 
@@ -354,7 +345,7 @@ public class WorldListener implements Listener {
         }
 
         Location l = event.getPlayer().getLocation();
-        worldManager.getRedisConnection().sync().set("world:" + event.getPlayer().getUniqueId(), l.getWorld().getName() + "," + l.getX() + "," + l.getY() + "," + l.getZ() + "," + l.getYaw() + "," + l.getPitch());
+        worldManager.setLastLocation(event.getPlayer().getUniqueId(), l);
     }
 
     private void emit(Location location, BlockData blockData) {

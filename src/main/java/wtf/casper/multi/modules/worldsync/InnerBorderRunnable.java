@@ -6,6 +6,7 @@ import org.bukkit.Particle;
 import org.bukkit.entity.Player;
 import wtf.casper.amethyst.core.inject.Inject;
 
+//TODO: rewrite
 public class InnerBorderRunnable implements Runnable {
 
     private final WorldManager worldManager = Inject.get(WorldManager.class);
