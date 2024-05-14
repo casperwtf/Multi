@@ -27,10 +27,7 @@ import wtf.casper.multi.modules.worldsync.data.BlockLocation;
 import wtf.casper.multi.modules.worldsync.data.BlockSnapshot;
 import wtf.casper.multi.modules.worldsync.data.ServerBasedWorld;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 @AutoService(Listener.class) @Log
 public class WorldListener implements Listener {
@@ -38,6 +35,16 @@ public class WorldListener implements Listener {
     private final Map<UUID, Location> protection = new HashMap<>();
 
     private final BlockData airBlockData = Material.AIR.createBlockData();
+
+    private static final List<UUID> DONT_SAVE = new ArrayList<>();
+
+    public static void dontSave(UUID uuid) {
+        DONT_SAVE.add(uuid);
+    }
+
+    public static void doSave(UUID uuid) {
+        DONT_SAVE.remove(uuid);
+    }
 
     @EventHandler
     public void onTeleport(PlayerTeleportEvent event) {
@@ -341,6 +348,10 @@ public class WorldListener implements Listener {
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
         worldManager.getTeleporting().remove(event.getPlayer().getUniqueId());
+
+        if (DONT_SAVE.remove(event.getPlayer().getUniqueId())) {
+            return;
+        }
 
         Location l = event.getPlayer().getLocation();
         worldManager.getRedisConnection().sync().set("world:" + event.getPlayer().getUniqueId(), l.getWorld().getName() + "," + l.getX() + "," + l.getY() + "," + l.getZ() + "," + l.getYaw() + "," + l.getPitch());
