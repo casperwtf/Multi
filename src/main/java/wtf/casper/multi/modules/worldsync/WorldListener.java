@@ -45,7 +45,6 @@ public class WorldListener implements Listener {
             return;
         }
 
-        Chunk
         event.setCancelled(true);
 //        worldManager.
     }

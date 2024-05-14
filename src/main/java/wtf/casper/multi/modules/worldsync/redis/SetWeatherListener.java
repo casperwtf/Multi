@@ -8,15 +8,16 @@ import wtf.casper.multi.packets.worldsync.GlobalSetWeatherPacket;
 import wtf.casper.multi.packets.worldsync.WorldSyncRedisListener;
 
 @AutoService(WorldSyncRedisListener.class)
-public class GlobalSetWeatherListener extends RedisListener<GlobalSetWeatherPacket> implements WorldSyncRedisListener {
+public class SetWeatherListener extends RedisListener<GlobalSetWeatherPacket> implements WorldSyncRedisListener {
 
-    public GlobalSetWeatherListener() {
+    public SetWeatherListener() {
         super(GlobalSetWeatherPacket.class);
     }
 
     @Override
     public void onMessage(GlobalSetWeatherPacket globalSetWeatherPacket) {
         World world = Bukkit.getWorld(globalSetWeatherPacket.getWorld());
+        if (world == null) return;
 
         switch (globalSetWeatherPacket.getWeatherState()) {
             case RAIN -> {
