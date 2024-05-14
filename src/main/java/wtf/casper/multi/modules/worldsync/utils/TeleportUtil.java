@@ -37,6 +37,10 @@ public class TeleportUtil {
         teleporting.put(player.getUniqueId(), worldName);
     }
 
+    public static void unmarkTeleporting(Player player) {
+        teleporting.remove(player.getUniqueId());
+    }
+
     public static void teleportPlayer(Player player, Location location) {
         if (WORLD_MANAGER.getWorld().withinBorder(location.getBlockX(), location.getBlockZ())) {
             player.teleport(location);

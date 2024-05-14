@@ -338,7 +338,7 @@ public class WorldListener implements Listener {
 
     @EventHandler
     public void onPlayerQuit(PlayerQuitEvent event) {
-        worldManager.getTeleporting().remove(event.getPlayer().getUniqueId());
+        TeleportUtil.unmarkTeleporting(event.getPlayer());
 
         if (DONT_SAVE.remove(event.getPlayer().getUniqueId())) {
             return;
