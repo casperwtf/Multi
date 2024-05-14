@@ -3,19 +3,19 @@ package wtf.casper.multi.modules.worldsync.utils;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import wtf.casper.amethyst.core.inject.Inject;
+import wtf.casper.amethyst.paper.utils.BungeeUtil;
 import wtf.casper.multi.modules.worldsync.WorldManager;
 import wtf.casper.multi.modules.worldsync.data.ServerBasedWorld;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 
 public class TeleportUtil {
 
     private static WorldManager WORLD_MANAGER = Inject.get(WorldManager.class);
 
     private final static Map<UUID, String> teleporting = new HashMap<>();
+
+    private final static ArrayDeque<String> SPAWN_ROUNDROBIN = new ArrayDeque<>();
 
     public static boolean isTeleporting(Player player) {
         return teleporting.containsKey(player.getUniqueId());
@@ -53,5 +53,20 @@ public class TeleportUtil {
 
         ServerBasedWorld basedWorld = world.get();
         basedWorld.tp(player);
+    }
+
+    public static void teleportPlayerToSpawn(Player player) {
+        if (SPAWN_ROUNDROBIN.isEmpty()) {
+            SPAWN_ROUNDROBIN.addAll(WORLD_MANAGER.getConfig().getStringList("spawns"));
+        }
+
+        String serverName = SPAWN_ROUNDROBIN.poll();
+        if (serverName == null) {
+            throw new IllegalStateException("No spawn worlds found");
+        }
+
+        BungeeUtil.sendPlayerToServer(player, serverName);
+
+        SPAWN_ROUNDROBIN.add(serverName);
     }
 }

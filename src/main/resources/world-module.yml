@@ -2,6 +2,10 @@ this-world: world-0
 config-version: 3
 last-updated: 0
 
+spawns:
+  - spawn1
+  - spawn2
+
 storage:
   type: JSON # JSON, MONGODB
   uri: mongodb://localhost:27017
